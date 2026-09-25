@@ -1,0 +1,6 @@
+{
+  "name": "Envault - Centralized Secret & Env Manager",
+  "description": "Zero-knowledge AES-256-GCM encrypted environment variable and secret manager for developers and teams.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
