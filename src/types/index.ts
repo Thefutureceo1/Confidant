@@ -88,3 +88,29 @@ export interface ApiKey {
   last_used_at: string | null;
   expires_at: string | null;
 }
+
+export interface TransferRecord {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  project_name: string;
+  environment_id: string;
+  environment_name: string;
+  type: 'import' | 'export' | 'revert';
+  source_label: string; // e.g. '.env.production', 'Web Export', 'CLI sync', 'Rollback'
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  created_at: string;
+  added_keys: string[];
+  updated_keys: string[];
+  unchanged_keys_count: number;
+  total_keys: number;
+  reverted_at?: string | null;
+  reverted_by?: string | null;
+  snapshot_before: Secret[]; // encrypted backup before the transfer
+  snapshot_after: Secret[];  // encrypted backup after the transfer
+  checksum: string;
+  notes?: string;
+}
+

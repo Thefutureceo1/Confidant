@@ -7,6 +7,7 @@ import {
   AuditLog,
   ApiKey,
   User,
+  TransferRecord,
 } from '../types';
 
 const STORAGE_KEY_PREFIX = 'envault_data_v2_';
@@ -40,6 +41,7 @@ interface DatabaseState {
   secrets: Secret[];
   auditLogs: AuditLog[];
   apiKeys: ApiKey[];
+  transfers: TransferRecord[];
   supabaseConfig?: {
     url: string;
     anonKey: string;
@@ -236,6 +238,114 @@ const INITIAL_STATE: DatabaseState = {
       expires_at: null,
     },
   ],
+  transfers: [
+    {
+      id: 'tr-ecom-import-prod',
+      workspace_id: 'ws-core-engineering',
+      project_id: 'proj-ecommerce-api',
+      project_name: 'Ecommerce API Gateway',
+      environment_id: 'env-ecom-prod',
+      environment_name: 'production',
+      type: 'import',
+      source_label: '.env.production (Release v2.4.0)',
+      user_id: 'user-alex-admin',
+      user_email: 'alex.developer@envault.dev',
+      user_name: 'Alex Rivera',
+      created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+      added_keys: ['STRIPE_WEBHOOK_SECRET', 'REDIS_CLUSTER_URL', 'ALGOLIA_SEARCH_KEY'],
+      updated_keys: ['DATABASE_URL', 'STRIPE_SECRET_KEY'],
+      unchanged_keys_count: 3,
+      total_keys: 8,
+      reverted_at: null,
+      reverted_by: null,
+      snapshot_before: [
+        {
+          id: 'sec-snap-1',
+          environment_id: 'env-ecom-prod',
+          key: 'DATABASE_URL',
+          encrypted_value: 'dGVzdF9jaXBoZXJ0ZXh0X2RiX3VybA==',
+          iv: 'MTIzNDU2Nzg5MDEy',
+          created_by: 'user-alex-admin',
+          updated_by: 'user-alex-admin',
+          created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+          updated_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+        },
+        {
+          id: 'sec-snap-2',
+          environment_id: 'env-ecom-prod',
+          key: 'STRIPE_SECRET_KEY',
+          encrypted_value: 'dGVzdF9jaXBoZXJ0ZXh0X3N0cmlwZV9rZXk=',
+          iv: 'OTg3NjU0MzIxMDk4',
+          created_by: 'user-alex-admin',
+          updated_by: 'user-alex-admin',
+          created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+          updated_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+        },
+        {
+          id: 'sec-snap-3',
+          environment_id: 'env-ecom-prod',
+          key: 'JWT_SECRET_SIGNER',
+          encrypted_value: 'dGVzdF9jaXBoZXJ0ZXh0X2p3dF9zZWNyZXQ=',
+          iv: 'NDU2Nzg5MDEyMzQ1',
+          created_by: 'user-alex-admin',
+          updated_by: 'user-alex-admin',
+          created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+          updated_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+        },
+      ],
+      snapshot_after: [],
+      checksum: 'sha256:7f92a18b9c2d1e0f4',
+      notes: 'Imported payment & search configurations prior to release rollout',
+    },
+    {
+      id: 'tr-ecom-export-prod',
+      workspace_id: 'ws-core-engineering',
+      project_id: 'proj-ecommerce-api',
+      project_name: 'Ecommerce API Gateway',
+      environment_id: 'env-ecom-prod',
+      environment_name: 'production',
+      type: 'export',
+      source_label: 'Web .env download (Deployment bundle)',
+      user_id: 'user-jordan-member',
+      user_email: 'jordan.lee@envault.dev',
+      user_name: 'Jordan Lee',
+      created_at: new Date(Date.now() - 18 * 3600000).toISOString(),
+      added_keys: [],
+      updated_keys: [],
+      unchanged_keys_count: 8,
+      total_keys: 8,
+      reverted_at: null,
+      reverted_by: null,
+      snapshot_before: [],
+      snapshot_after: [],
+      checksum: 'sha256:3a1b4c9e8d7f2a1b',
+      notes: 'Exported decrypted bundle for Kubernetes production secret manifest',
+    },
+    {
+      id: 'tr-ecom-staging-import',
+      workspace_id: 'ws-core-engineering',
+      project_id: 'proj-ecommerce-api',
+      project_name: 'Ecommerce API Gateway',
+      environment_id: 'env-ecom-staging',
+      environment_name: 'staging',
+      type: 'import',
+      source_label: '.env.staging.local',
+      user_id: 'user-alex-admin',
+      user_email: 'alex.developer@envault.dev',
+      user_name: 'Alex Rivera',
+      created_at: new Date(Date.now() - 48 * 3600000).toISOString(),
+      added_keys: ['AUTH0_CLIENT_ID', 'AUTH0_DOMAIN'],
+      updated_keys: ['API_RATE_LIMIT'],
+      unchanged_keys_count: 4,
+      total_keys: 7,
+      reverted_at: null,
+      reverted_by: null,
+      snapshot_before: [],
+      snapshot_after: [],
+      checksum: 'sha256:9c8d7e6f5a4b3c2d',
+      notes: 'Updated staging Auth0 credentials for single-sign on test suite',
+    },
+  ],
 };
 
 class StorageEngine {
@@ -249,7 +359,11 @@ class StorageEngine {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'db');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (!parsed.transfers || parsed.transfers.length === 0) {
+          parsed.transfers = INITIAL_STATE.transfers;
+        }
+        return parsed;
       }
     } catch (e) {
       console.warn('Could not read from localStorage', e);
@@ -873,6 +987,129 @@ class StorageEngine {
 
   public getSupabaseConfig(): { url: string; anonKey: string } | undefined {
     return this.state.supabaseConfig;
+  }
+
+  // TRANSFER HISTORY & BULK SNAPSHOT REVERT
+  public getTransfers(workspaceId: string): TransferRecord[] {
+    if (!this.state.transfers) {
+      this.state.transfers = [];
+    }
+    return this.state.transfers
+      .filter((t) => t.workspace_id === workspaceId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  public getTransfer(transferId: string): TransferRecord | undefined {
+    return (this.state.transfers || []).find((t) => t.id === transferId);
+  }
+
+  public addTransfer(record: Omit<TransferRecord, 'id' | 'created_at'>): TransferRecord {
+    if (!this.state.transfers) {
+      this.state.transfers = [];
+    }
+    const newTransfer: TransferRecord = {
+      ...record,
+      id: 'tr-' + Math.random().toString(36).substring(2, 9),
+      created_at: new Date().toISOString(),
+    };
+    this.state.transfers.unshift(newTransfer);
+    if (this.state.transfers.length > 200) {
+      this.state.transfers = this.state.transfers.slice(0, 200);
+    }
+    this.saveState(this.state);
+    return newTransfer;
+  }
+
+  public restoreEnvironmentSecrets(environmentId: string, snapshot: Secret[], user: User): void {
+    // Retain secrets belonging to other environments, replace secrets in this environment with snapshot
+    this.state.secrets = this.state.secrets.filter((s) => s.environment_id !== environmentId);
+    const clonedSnapshot: Secret[] = snapshot.map((s) => ({
+      ...s,
+      id: 'sec-' + Math.random().toString(36).substring(2, 9),
+      environment_id: environmentId,
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    }));
+    this.state.secrets.push(...clonedSnapshot);
+
+    const env = this.state.environments.find((e) => e.id === environmentId);
+    if (env) {
+      env.updated_at = new Date().toISOString();
+      const proj = this.state.projects.find((p) => p.id === env.project_id);
+      if (proj) {
+        proj.updated_at = new Date().toISOString();
+        this.addAuditLog({
+          workspace_id: proj.workspace_id,
+          user_id: user.id,
+          user_email: user.email,
+          action: 'updated',
+          resource_type: 'environment',
+          resource_id: env.id,
+          metadata: {
+            environment_name: env.name,
+            project_name: proj.name,
+            details: `Restored environment variables to prior snapshot (${clonedSnapshot.length} variables)`,
+          },
+        });
+      }
+    }
+
+    this.saveState(this.state);
+  }
+
+  public revertTransfer(
+    transferId: string,
+    user: User
+  ): { success: boolean; restoredCount: number; message: string } {
+    if (!this.state.transfers) {
+      throw new Error('No transfer history available.');
+    }
+    const target = this.state.transfers.find((t) => t.id === transferId);
+    if (!target) {
+      throw new Error('Transfer record not found.');
+    }
+
+    const currentSecrets = this.getSecrets(target.environment_id);
+
+    // Apply restoration to snapshot_before
+    this.restoreEnvironmentSecrets(target.environment_id, target.snapshot_before, user);
+
+    // Mark original transfer as reverted
+    target.reverted_at = new Date().toISOString();
+    target.reverted_by = user.name;
+
+    // Log a new revert transfer record
+    const revertRecord: TransferRecord = {
+      id: 'tr-' + Math.random().toString(36).substring(2, 9),
+      workspace_id: target.workspace_id,
+      project_id: target.project_id,
+      project_name: target.project_name,
+      environment_id: target.environment_id,
+      environment_name: target.environment_name,
+      type: 'revert',
+      source_label: `Rollback of ${target.source_label}`,
+      user_id: user.id,
+      user_email: user.email,
+      user_name: user.name,
+      created_at: new Date().toISOString(),
+      added_keys: [],
+      updated_keys: target.snapshot_before.map((s) => s.key),
+      unchanged_keys_count: 0,
+      total_keys: target.snapshot_before.length,
+      snapshot_before: currentSecrets,
+      snapshot_after: target.snapshot_before,
+      checksum: target.checksum,
+      notes: `Reverted environment to snapshot taken on ${new Date(target.created_at).toLocaleString()}`,
+    };
+
+    this.state.transfers.unshift(revertRecord);
+    this.saveState(this.state);
+
+    return {
+      success: true,
+      restoredCount: target.snapshot_before.length,
+      message: `Successfully reverted '${target.environment_name}' back to pre-import snapshot (${target.snapshot_before.length} variables restored).`,
+    };
   }
 }
 

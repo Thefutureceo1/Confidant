@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Project, Environment, Secret, DecryptedSecret, AuditLog, ApiKey, WorkspaceMember } from '../types';
+import { Project, Environment, Secret, DecryptedSecret, AuditLog, ApiKey, WorkspaceMember, TransferRecord } from '../types';
 import { db } from '../lib/storage';
 import { useAuth } from './AuthContext';
 import { encrypt, decrypt, deriveKey, generateSalt } from '../lib/encryption';
@@ -16,6 +16,7 @@ interface WorkspaceContextType {
   members: WorkspaceMember[];
   auditLogs: AuditLog[];
   apiKeys: ApiKey[];
+  transfers: TransferRecord[];
   setSelectedProject: (p: Project | null) => void;
   setSelectedEnvironment: (e: Environment | null) => void;
   getProjectEnvironments: (projectId: string) => Environment[];
@@ -27,8 +28,9 @@ interface WorkspaceContextType {
   deleteEnvironment: (envId: string) => Promise<void>;
   saveSecret: (environmentId: string, key: string, plainValue: string) => Promise<Secret>;
   deleteSecret: (secretId: string) => Promise<void>;
-  bulkImport: (environmentId: string, envContent: string, overwriteExisting: boolean) => Promise<{ added: number; updated: number }>;
-  exportAsEnvString: (environmentId: string) => Promise<string>;
+  bulkImport: (environmentId: string, envContent: string, overwriteExisting: boolean, sourceFilename?: string) => Promise<{ added: number; updated: number }>;
+  exportAsEnvString: (environmentId: string, sourceLabel?: string) => Promise<string>;
+  revertTransfer: (transferId: string) => Promise<{ success: boolean; restoredCount: number; message: string }>;
   rotateWorkspaceKeys: (newPassphrase: string) => Promise<void>;
   inviteMember: (email: string, role: 'admin' | 'member') => Promise<WorkspaceMember>;
   updateMemberRole: (memberId: string, role: 'admin' | 'member') => Promise<void>;
@@ -54,6 +56,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [transfers, setTransfers] = useState<TransferRecord[]>([]);
 
   // Load workspace level data
   const refreshWorkspaceData = useCallback(() => {
@@ -62,6 +65,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setMembers([]);
       setAuditLogs([]);
       setApiKeys([]);
+      setTransfers([]);
       setSelectedProject(null);
       setSelectedEnvironment(null);
       return;
@@ -78,6 +82,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const keys = db.getApiKeys(currentWorkspace.id);
     setApiKeys(keys);
+
+    const trs = db.getTransfers(currentWorkspace.id);
+    setTransfers(trs);
 
     if (selectedProject) {
       const updated = projs.find((p) => p.id === selectedProject.id);
@@ -264,16 +271,20 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const bulkImport = async (
     environmentId: string,
     envContent: string,
-    overwriteExisting: boolean
+    overwriteExisting: boolean,
+    sourceFilename?: string
   ): Promise<{ added: number; updated: number }> => {
-    if (!user || !encryptionKey) throw new Error('Encryption key is not available.');
+    if (!user || !encryptionKey || !currentWorkspace) throw new Error('Encryption key is not available.');
 
+    const snapshotBefore = db.getSecrets(environmentId).map((s) => ({ ...s }));
     const lines = envContent.split(/\r?\n/);
     const existing = db.getSecrets(environmentId);
     const existingKeys = new Set(existing.map((s) => s.key));
 
     let added = 0;
     let updated = 0;
+    const addedKeys: string[] = [];
+    const updatedKeys: string[] = [];
 
     for (const rawLine of lines) {
       const line = rawLine.trim();
@@ -308,11 +319,39 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (existingKeys.has(key)) {
         updated++;
+        updatedKeys.push(key);
       } else {
         added++;
+        addedKeys.push(key);
         existingKeys.add(key);
       }
     }
+
+    const snapshotAfter = db.getSecrets(environmentId).map((s) => ({ ...s }));
+    const env = db.getEnvironment(environmentId);
+    const proj = env ? db.getProject(env.project_id) : undefined;
+
+    // Track transfer snapshot for 1-click safe revert
+    db.addTransfer({
+      workspace_id: currentWorkspace.id,
+      project_id: proj?.id || '',
+      project_name: proj?.name || 'Project',
+      environment_id: environmentId,
+      environment_name: env?.name || 'environment',
+      type: 'import',
+      source_label: sourceFilename || '.env import',
+      user_id: user.id,
+      user_email: user.email,
+      user_name: user.name,
+      added_keys: addedKeys,
+      updated_keys: updatedKeys,
+      unchanged_keys_count: Math.max(0, snapshotBefore.length - updatedKeys.length),
+      total_keys: snapshotAfter.length,
+      snapshot_before: snapshotBefore,
+      snapshot_after: snapshotAfter,
+      checksum: 'sha256:' + Math.random().toString(36).substring(2, 10),
+      notes: `Bulk import: ${added} added, ${updated} updated (${snapshotAfter.length} total variables)`,
+    });
 
     if (selectedEnvironment && selectedEnvironment.id === environmentId) {
       const rawSecrets = db.getSecrets(environmentId);
@@ -333,10 +372,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return { added, updated };
   };
 
-  const exportAsEnvString = async (environmentId: string): Promise<string> => {
-    if (!encryptionKey) throw new Error('Encryption key is locked.');
+  const exportAsEnvString = async (environmentId: string, sourceLabel = 'Downloaded .env'): Promise<string> => {
+    if (!encryptionKey || !currentWorkspace || !user) throw new Error('Encryption key is locked.');
     const rawSecrets = db.getSecrets(environmentId);
     const env = db.getEnvironment(environmentId);
+    const proj = env ? db.getProject(env.project_id) : undefined;
     const lines: string[] = [
       `# Generated by Confidant (${env?.name || 'environment'})`,
       `# Exported at: ${new Date().toISOString()}`,
@@ -355,7 +395,58 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }
 
+    // Log export event in transfers
+    db.addTransfer({
+      workspace_id: currentWorkspace.id,
+      project_id: proj?.id || '',
+      project_name: proj?.name || 'Project',
+      environment_id: environmentId,
+      environment_name: env?.name || 'environment',
+      type: 'export',
+      source_label: sourceLabel,
+      user_id: user.id,
+      user_email: user.email,
+      user_name: user.name,
+      added_keys: [],
+      updated_keys: [],
+      unchanged_keys_count: rawSecrets.length,
+      total_keys: rawSecrets.length,
+      snapshot_before: [],
+      snapshot_after: [],
+      checksum: 'sha256:' + Math.random().toString(36).substring(2, 10),
+      notes: `Exported ${rawSecrets.length} plaintext decrypted variables`,
+    });
+
+    refreshWorkspaceData();
     return lines.join('\n');
+  };
+
+  const revertTransfer = async (
+    transferId: string
+  ): Promise<{ success: boolean; restoredCount: number; message: string }> => {
+    if (!user || !encryptionKey || !currentWorkspace) throw new Error('Encryption key is locked.');
+    const target = db.getTransfer(transferId);
+    if (!target) throw new Error('Transfer record not found.');
+
+    const res = db.revertTransfer(transferId, user);
+    refreshWorkspaceData();
+
+    if (selectedEnvironment && selectedEnvironment.id === target.environment_id) {
+      const rawSecrets = db.getSecrets(target.environment_id);
+      setSecrets(rawSecrets);
+      const decList: DecryptedSecret[] = [];
+      for (const s of rawSecrets) {
+        try {
+          const val = await decrypt(s.encrypted_value, s.iv, encryptionKey);
+          decList.push({ ...s, value: val });
+        } catch {
+          decList.push({ ...s, value: '[DECRYPT_ERROR]' });
+        }
+      }
+      setDecryptedSecrets(decList);
+    }
+
+    return res;
   };
 
   // Re-encrypt all workspace secrets with a newly derived key and salt
@@ -440,6 +531,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         members,
         auditLogs,
         apiKeys,
+        transfers,
         setSelectedProject,
         setSelectedEnvironment,
         getProjectEnvironments,
@@ -453,6 +545,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         deleteSecret,
         bulkImport,
         exportAsEnvString,
+        revertTransfer,
         rotateWorkspaceKeys,
         inviteMember,
         updateMemberRole,
