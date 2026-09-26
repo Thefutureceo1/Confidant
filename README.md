@@ -1,6 +1,6 @@
 # Confidant 🔐 — Centralized, Zero-Knowledge Secret & Env Manager
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Source--Available-orange.svg)](LICENSE)
 [![Docker Support](https://img.shields.io/badge/Docker-Ready-cyan.svg)](Dockerfile)
 [![Air-Gapped Ready](https://img.shields.io/badge/Deployment-Air--Gapped-emerald.svg)](#-100-offline--air-gapped-architecture)
 [![Encryption](https://img.shields.io/badge/Encryption-AES--256--GCM-indigo.svg)](#-zero-knowledge-security-architecture)
@@ -233,7 +233,16 @@ See **[CONTRIBUTING.md](CONTRIBUTING.md)** for:
 
 ## 📄 License
 
-This project is open-source software licensed under the [MIT License](LICENSE).
+Confidant is licensed under the **Confidant Source-Available License v1.0**.
+
+This means:
+- ✅ You may download, use, and review the software for personal or internal use.
+- ✅ You may modify it for your own use.
+- ❌ You may not sell or monetize it without a separate commercial license.
+- ❌ If you share modified versions publicly, you must disclose the changes and provide the source to those recipients.
+- ✅ The copyright holder may grant separate commercial licensing arrangements.
+
+See [LICENSE](LICENSE) for the full legal text.
 
 ---
 
