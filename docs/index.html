@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confidant | Zero-Knowledge Secret Manager</title>
+    <meta
+      name="description"
+      content="Confidant is a zero-knowledge secret and environment manager for secure DevOps, air-gapped, and self-hosted deployments."
+    />
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #111827;
+        --panel-2: #1f2937;
+        --line: rgba(148, 163, 184, 0.25);
+        --text: #e5eefb;
+        --muted: #9fb3cc;
+        --brand: #7dd3fc;
+        --brand-2: #34d399;
+        --accent: #a78bfa;
+        --shadow: rgba(15, 23, 42, 0.5);
+      }
+
+      * { box-sizing: border-box; }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: radial-gradient(circle at top, #101a2b 0%, var(--bg) 55%);
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .wrap {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 22px 0 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--brand), var(--accent));
+        color: #07111f;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 0.96rem;
+      }
+
+      .nav-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.8rem 1.2rem;
+        border-radius: 12px;
+        font-weight: 700;
+        border: 1px solid transparent;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--brand), var(--brand-2));
+        color: #041421;
+      }
+
+      .btn-secondary {
+        border-color: var(--line);
+        background: rgba(148, 163, 184, 0.06);
+        color: var(--text);
+      }
+
+      .hero {
+        padding: 72px 0 36px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 28px;
+        align-items: center;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border: 1px solid rgba(125, 211, 252, 0.45);
+        background: rgba(125, 211, 252, 0.08);
+        border-radius: 999px;
+        color: var(--brand);
+        font-weight: 700;
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 20px 0 18px;
+        font-size: clamp(2.5rem, 4vw, 4.5rem);
+        line-height: 1.02;
+        letter-spacing: -0.06em;
+      }
+
+      .hero p {
+        margin: 0 0 26px;
+        color: var(--muted);
+        font-size: 1.08rem;
+        max-width: 60ch;
+      }
+
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .meta .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--brand-2);
+        display: inline-block;
+      }
+
+      .demo {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: 0 25px 60px var(--shadow);
+      }
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--muted);
+        margin-bottom: 16px;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-dots span {
+        width: 10px;
+        height: 10px;
+        display: inline-block;
+        border-radius: 50%;
+      }
+
+      .window-dots span:nth-child(1) { background: #f87171; }
+      .window-dots span:nth-child(2) { background: #fbbf24; }
+      .window-dots span:nth-child(3) { background: #34d399; }
+
+      .screen {
+        background: linear-gradient(180deg, #0b1120, #0c1322);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        min-height: 470px;
+        padding: 18px;
+      }
+
+      .screen-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .status-pill {
+        background: rgba(52, 211, 153, 0.12);
+        border: 1px solid rgba(52, 211, 153, 0.4);
+        color: #b9f8d8;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
+      .secret-card {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .card {
+        background: rgba(17, 24, 39, 0.8);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .value {
+        font-weight: 700;
+      }
+
+      .secret {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: center;
+        margin-top: 8px;
+        padding-top: 10px;
+      }
+
+      .secret-box {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: #dcfce7;
+        word-break: break-all;
+        flex: 1;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 80px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.35);
+        background: rgba(125, 211, 252, 0.08);
+        color: var(--brand);
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+
+      .section {
+        padding: 36px 0;
+      }
+
+      .section h2 {
+        margin: 0 0 18px;
+        font-size: clamp(1.8rem, 2vw, 2.6rem);
+        letter-spacing: -0.04em;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .feature {
+        padding: 22px 18px;
+        background: rgba(17, 24, 39, 0.7);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+      }
+
+      .feature-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 12px;
+        background: linear-gradient(135deg, rgba(125, 211, 252, 0.18), rgba(167, 139, 250, 0.18));
+        font-size: 1.3rem;
+      }
+
+      .feature h3 {
+        margin: 0 0 8px;
+        font-size: 1.2rem;
+      }
+
+      .feature p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .stack {
+        padding: 14px 18px;
+        border-radius: 12px;
+        background: rgba(148, 163, 184, 0.04);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+
+      footer {
+        padding: 24px 0 56px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 840px) {
+        .hero-grid,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .nav-links {
+          display: none;
+        }
+
+        .nav {
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap nav">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <span>Confidant</span>
+        </div>
+
+        <nav class="nav-links" aria-label="Main navigation">
+          <a href="#features">Features</a>
+          <a href="#security">Security</a>
+          <a href="#docs">Docs</a>
+          <a href="#github">GitHub</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="https://github.com/Thefutureceo1/Confidant" target="_blank" rel="noreferrer">View repo</a>
+          <a class="btn btn-primary" href="https://github.com/Thefutureceo1/Confidant#readme" target="_blank" rel="noreferrer">Get started</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <div class="eyebrow">Zero-knowledge secret manager</div>
+            <h1>Secure secrets for secure environments.</h1>
+            <p>
+              Confidant is a self-hosted, browser-side encrypted secret manager built for
+              DevOps teams, platform engineers, and security-conscious operators working in
+              isolated, regulated, or air-gapped environments.
+            </p>
+
+            <div class="cta-row">
+              <a class="btn btn-primary" href="https://github.com/Thefutureceo1/Confidant" target="_blank" rel="noreferrer">Open GitHub</a>
+              <a class="btn btn-secondary" href="https://github.com/Thefutureceo1/Confidant#readme" target="_blank" rel="noreferrer">Read docs</a>
+            </div>
+
+            <div class="meta">
+              <span><span class="dot"></span> Zero-knowledge</span>
+              <span><span class="dot"></span> Offline-ready</span>
+              <span><span class="dot"></span> Self-hosted</span>
+            </div>
+          </div>
+
+          <div class="demo" aria-label="Confidant dashboard preview">
+            <div class="panel-header">
+              <div class="window-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <span>confidant.local</span>
+            </div>
+
+            <div class="screen">
+              <div class="screen-top">
+                <span>Secrets vault</span>
+                <span class="status-pill">Encrypted</span>
+              </div>
+
+              <div class="secret-card">
+                <div class="card">
+                  <div class="row">
+                    <span class="label">Environment</span>
+                    <span class="value">production</span>
+                  </div>
+                  <div class="secret">
+                    <div class="secret-box">AIzaSy...Q8dKxI3n4mN0</div>
+                    <span class="chip">AES-256</span>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="row">
+                    <span class="label">Database URL</span>
+                    <span class="value">masked</span>
+                  </div>
+                  <div class="secret">
+                    <div class="secret-box">postgres://***:***@db.internal</div>
+                    <span class="chip">Vault</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="row">
+                  <span class="label">Rotation</span>
+                  <span class="value">14 days</span>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                  <span class="label">Webhook status</span>
+                  <span class="value">healthy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="section">
+        <div class="wrap">
+          <h2>Built for controlled, high-trust environments.</h2>
+          <div class="grid">
+            <article class="feature">
+              <div class="feature-icon">🔒</div>
+              <h3>Zero-knowledge encryption</h3>
+              <p>
+                Secrets are encrypted in the browser using browser-native crypto APIs before being saved.
+              </p>
+            </article>
+
+            <article class="feature">
+              <div class="feature-icon">🛰️</div>
+              <h3>Air-gapped ready</h3>
+              <p>
+                Designed for isolated environments with no dependency on external trackers, telemetry, or cloud services.
+              </p>
+            </article>
+
+            <article class="feature">
+              <div class="feature-icon">🔄</div>
+              <h3>Automated rotation</h3>
+              <p>
+                Maintain freshness with rotation policies, expiry warnings, and secure regeneration workflows.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="security" class="section">
+        <div class="wrap">
+          <h2>Security-first design</h2>
+          <div class="grid">
+            <div class="stack">AES-256-GCM encryption for secret payloads</div>
+            <div class="stack">PBKDF2-based key derivation with salted secrets</div>
+            <div class="stack">Client-side processing to keep decryption local</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="docs" class="section">
+        <div class="wrap">
+          <h2>Get started quickly</h2>
+          <div class="grid">
+            <div class="stack">Clone the repository and run Docker Compose locally</div>
+            <div class="stack">Use the built-in secret vault and rotation workflows</div>
+            <div class="stack">Deploy in a self-hosted or air-gapped environment</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>Confidant © 2026 — zero-knowledge secret management for secure DevOps environments.</p>
+      </div>
+    </footer>
+  </body>
+</html>
