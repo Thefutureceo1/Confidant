@@ -97,7 +97,7 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0d13] text-slate-100 flex flex-col font-sans">
+    <div className="h-screen overflow-hidden bg-[#0b0d13] text-slate-100 flex flex-col font-sans">
       {/* Top Navigation */}
       <Navbar
         currentPage={currentPage}

@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  confidant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: confidant-vault
+    ports:
+      - "3000:80"
+    restart: always
+    environment:
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

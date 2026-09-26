@@ -16,6 +16,7 @@ import { Project, Environment } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { db } from '../lib/storage';
+import { WebhookPanel } from '../components/WebhookPanel';
 
 interface ProjectDetailPageProps {
   project: Project;
@@ -37,6 +38,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const { userRole } = useAuth();
   const { environments, deleteEnvironment, deleteProject } = useWorkspace();
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'environments' | 'webhooks'>('environments');
 
   const projectEnvs = environments.filter((e) => e.project_id === project.id);
 
@@ -114,92 +116,120 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         </div>
       </div>
 
-      {/* Environments Grid */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Layers className="h-4 w-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-white">Environments ({projectEnvs.length})</h2>
-          </div>
-          <span className="text-xs text-slate-500">
-            Select an environment to view and edit secrets
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {projectEnvs.map((env) => {
-            const count = db.getSecrets(env.id).length;
-            const updatedTime = new Date(env.updated_at).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-
-            return (
-              <div
-                key={env.id}
-                className="glass-card rounded-2xl p-5 hover:border-white/[0.16] transition-all group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className={`h-2.5 w-2.5 rounded-full ${
-                          env.name === 'production'
-                            ? 'bg-rose-400 shadow-sm shadow-rose-400/50'
-                            : env.name === 'staging'
-                            ? 'bg-amber-400 shadow-sm shadow-amber-400/50'
-                            : 'bg-emerald-400 shadow-sm shadow-emerald-400/50'
-                        }`}
-                      />
-                      <span className="font-mono text-sm font-bold text-white uppercase tracking-wider">
-                        {env.name}
-                      </span>
-                    </div>
-
-                    {userRole === 'admin' && projectEnvs.length > 1 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`Delete environment "${env.name}" and all its encrypted secrets?`)) {
-                            deleteEnvironment(env.id);
-                          }
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-rose-400 transition-opacity"
-                        title="Delete environment"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex items-baseline justify-between">
-                    <div>
-                      <div className="text-2xl font-bold font-mono text-cyan-300">{count}</div>
-                      <div className="text-[11px] text-slate-400">Environment Variables</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 text-[11px] text-slate-500 font-mono">
-                    Last updated: {updatedTime}
-                  </div>
-                </div>
-
-                <div className="mt-5 pt-3 border-t border-white/[0.06] flex items-center justify-between">
-                  <button
-                    onClick={() => onSelectEnvironment(project, env)}
-                    className="w-full flex items-center justify-between text-xs font-medium text-indigo-400 hover:text-indigo-300 group-hover:translate-x-0.5 transition-all"
-                  >
-                    <span>Open Secret Vault</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Tab Switcher */}
+      <div className="flex border-b border-white/[0.08] text-xs">
+        <button
+          onClick={() => setActiveTab('environments')}
+          className={`pb-2.5 px-4 font-semibold border-b-2 transition-colors ${
+            activeTab === 'environments'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          Secret Environments
+        </button>
+        <button
+          onClick={() => setActiveTab('webhooks')}
+          className={`pb-2.5 px-4 font-semibold border-b-2 transition-colors ${
+            activeTab === 'webhooks'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          Outbound Webhooks & CI/CD
+        </button>
       </div>
+
+      {activeTab === 'environments' ? (
+        /* Environments Grid */
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <Layers className="h-4 w-4 text-cyan-400" />
+              <h2 className="text-sm font-semibold text-white">Environments ({projectEnvs.length})</h2>
+            </div>
+            <span className="text-xs text-slate-500">
+              Select an environment to view and edit secrets
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {projectEnvs.map((env) => {
+              const count = db.getSecrets(env.id).length;
+              const updatedTime = new Date(env.updated_at).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              return (
+                <div
+                  key={env.id}
+                  className="glass-card rounded-2xl p-5 hover:border-white/[0.16] transition-all group flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            env.name === 'production'
+                              ? 'bg-rose-400 shadow-sm shadow-rose-400/50'
+                              : env.name === 'staging'
+                              ? 'bg-amber-400 shadow-sm shadow-amber-400/50'
+                              : 'bg-emerald-400 shadow-sm shadow-emerald-400/50'
+                          }`}
+                        />
+                        <span className="font-mono text-sm font-bold text-white uppercase tracking-wider">
+                          {env.name}
+                        </span>
+                      </div>
+
+                      {userRole === 'admin' && projectEnvs.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete environment "${env.name}" and all its encrypted secrets?`)) {
+                              deleteEnvironment(env.id);
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-rose-400 transition-opacity"
+                          title="Delete environment"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-baseline justify-between">
+                      <div>
+                        <div className="text-2xl font-bold font-mono text-cyan-300">{count}</div>
+                        <div className="text-[11px] text-slate-400">Environment Variables</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-[11px] text-slate-500 font-mono">
+                      Last updated: {updatedTime}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                    <button
+                      onClick={() => onSelectEnvironment(project, env)}
+                      className="w-full flex items-center justify-between text-xs font-medium text-indigo-400 hover:text-indigo-300 group-hover:translate-x-0.5 transition-all"
+                    >
+                      <span>Open Secret Vault</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <WebhookPanel project={project} />
+      )}
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { Project, Environment, Secret, DecryptedSecret, AuditLog, ApiKey, Worksp
 import { db } from '../lib/storage';
 import { useAuth } from './AuthContext';
 import { encrypt, decrypt, deriveKey, generateSalt } from '../lib/encryption';
+import { dispatchWebhooks } from '../lib/webhookDispatcher';
 
 interface WorkspaceContextType {
   projects: Project[];
@@ -26,7 +27,16 @@ interface WorkspaceContextType {
   deleteProject: (id: string) => Promise<void>;
   createEnvironment: (projectId: string, name: string) => Promise<Environment>;
   deleteEnvironment: (envId: string) => Promise<void>;
-  saveSecret: (environmentId: string, key: string, plainValue: string) => Promise<Secret>;
+  saveSecret: (
+    environmentId: string,
+    key: string,
+    plainValue: string,
+    rotationIntervalDays?: number | null,
+    rotationStrategy?: 'generate_alphanumeric' | 'generate_hex' | 'generate_uuid' | 'manual_update' | null,
+    rotationKeyLength?: number | null,
+    lastRotatedAt?: string | null,
+    nextRotationDue?: string | null
+  ) => Promise<Secret>;
   deleteSecret: (secretId: string) => Promise<void>;
   bulkImport: (environmentId: string, envContent: string, overwriteExisting: boolean, sourceFilename?: string) => Promise<{ added: number; updated: number }>;
   exportAsEnvString: (environmentId: string, sourceLabel?: string) => Promise<string>;
@@ -230,13 +240,35 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refreshWorkspaceData();
   };
 
-  const saveSecret = async (environmentId: string, key: string, plainValue: string): Promise<Secret> => {
+  const saveSecret = async (
+    environmentId: string,
+    key: string,
+    plainValue: string,
+    rotationIntervalDays?: number | null,
+    rotationStrategy?: 'generate_alphanumeric' | 'generate_hex' | 'generate_uuid' | 'manual_update' | null,
+    rotationKeyLength?: number | null,
+    lastRotatedAt?: string | null,
+    nextRotationDue?: string | null
+  ): Promise<Secret> => {
     if (!user) throw new Error('Not authenticated');
     if (!encryptionKey) throw new Error('Encryption key is locked. Please unlock before adding secrets.');
 
+    const isUpdate = db.getSecrets(environmentId).some((s) => s.key === key);
+
     // Client-side AES-256-GCM encryption
     const encrypted = await encrypt(plainValue, encryptionKey);
-    const saved = db.saveSecret(environmentId, key, encrypted.ciphertext, encrypted.iv, user);
+    const saved = db.saveSecret(
+      environmentId,
+      key,
+      encrypted.ciphertext,
+      encrypted.iv,
+      user,
+      rotationIntervalDays,
+      rotationStrategy,
+      rotationKeyLength,
+      lastRotatedAt,
+      nextRotationDue
+    );
 
     // Refresh state
     const rawSecrets = db.getSecrets(environmentId);
@@ -255,17 +287,48 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     refreshWorkspaceData();
+
+    // Trigger webhook trigger
+    const env = db.getEnvironment(environmentId);
+    if (env) {
+      dispatchWebhooks(env.project_id, isUpdate ? 'secret.updated' : 'secret.created', {
+        environment_id: env.id,
+        environment_name: env.name,
+        actor_email: user.email,
+        actor_name: user.name,
+        impacted_keys: [key],
+      }).catch((e) => console.error('Webhook dispatcher failure:', e));
+    }
+
     return saved;
   };
 
   const deleteSecret = async (secretId: string): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
-    db.deleteSecret(secretId, userRole, user);
-    if (selectedEnvironment) {
-      setSecrets(db.getSecrets(selectedEnvironment.id));
-      setDecryptedSecrets((prev) => prev.filter((s) => s.id !== secretId));
+
+    const secret = db.getState().secrets.find((s) => s.id === secretId);
+    if (secret) {
+      const key = secret.key;
+      const environmentId = secret.environment_id;
+
+      db.deleteSecret(secretId, userRole, user);
+      if (selectedEnvironment) {
+        setSecrets(db.getSecrets(selectedEnvironment.id));
+        setDecryptedSecrets((prev) => prev.filter((s) => s.id !== secretId));
+      }
+      refreshWorkspaceData();
+
+      const env = db.getEnvironment(environmentId);
+      if (env) {
+        dispatchWebhooks(env.project_id, 'secret.deleted', {
+          environment_id: env.id,
+          environment_name: env.name,
+          actor_email: user.email,
+          actor_name: user.name,
+          impacted_keys: [key],
+        }).catch((e) => console.error('Webhook dispatcher failure:', e));
+      }
     }
-    refreshWorkspaceData();
   };
 
   const bulkImport = async (
@@ -369,6 +432,20 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     refreshWorkspaceData();
+
+    // Trigger webhook trigger
+    if (env && proj) {
+      const impactedKeys = [...addedKeys, ...updatedKeys];
+      dispatchWebhooks(proj.id, 'secret.updated', {
+        environment_id: env.id,
+        environment_name: env.name,
+        actor_email: user.email,
+        actor_name: user.name,
+        impacted_keys: impactedKeys,
+        notes: `Bulk import: ${added} added, ${updated} updated via ${sourceFilename || 'file'}`,
+      }).catch((e) => console.error('Webhook dispatcher failure:', e));
+    }
+
     return { added, updated };
   };
 
@@ -445,6 +522,16 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       setDecryptedSecrets(decList);
     }
+
+    // Trigger webhook trigger
+    dispatchWebhooks(target.project_id, 'secret.reverted', {
+      environment_id: target.environment_id,
+      environment_name: target.environment_name,
+      actor_email: user.email,
+      actor_name: user.name,
+      impacted_keys: target.snapshot_before.map((s) => s.key),
+      notes: `Reverted to snapshot from transfer ID: ${transferId.slice(0, 10)}`,
+    }).catch((e) => console.error('Webhook dispatcher failure:', e));
 
     return res;
   };

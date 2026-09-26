@@ -8,6 +8,8 @@ import {
   ApiKey,
   User,
   TransferRecord,
+  WebhookConfig,
+  WebhookDeliveryLog,
 } from '../types';
 
 const STORAGE_KEY_PREFIX = 'envault_data_v2_';
@@ -42,6 +44,8 @@ interface DatabaseState {
   auditLogs: AuditLog[];
   apiKeys: ApiKey[];
   transfers: TransferRecord[];
+  webhooks: WebhookConfig[];
+  webhookDeliveryLogs: WebhookDeliveryLog[];
   supabaseConfig?: {
     url: string;
     anonKey: string;
@@ -346,6 +350,86 @@ const INITIAL_STATE: DatabaseState = {
       notes: 'Updated staging Auth0 credentials for single-sign on test suite',
     },
   ],
+  webhooks: [
+    {
+      id: 'wh-prod-sync',
+      project_id: 'proj-ecommerce-api',
+      name: 'Vercel Deployment Webhook',
+      url: 'https://api.vercel.com/v1/integrations/deploy/prj_xyz123',
+      secret_token: 'whsec_7d2f9a1b8e0c',
+      active: true,
+      events: ['secret.created', 'secret.updated', 'secret.deleted', 'secret.reverted'],
+      created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    },
+    {
+      id: 'wh-slack-demo',
+      project_id: 'proj-ecommerce-api',
+      name: 'Slack Alerts Webhook',
+      url: 'https://hooks.slack.com/services/T000/B000/X123',
+      secret_token: 'whsec_slack_secret_token_123',
+      active: true,
+      events: ['secret.updated', 'secret.deleted'],
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    }
+  ],
+  webhookDeliveryLogs: [
+    {
+      id: 'log-deliv-1',
+      webhook_id: 'wh-prod-sync',
+      project_id: 'proj-ecommerce-api',
+      event: 'secret.updated',
+      url: 'https://api.vercel.com/v1/integrations/deploy/prj_xyz123',
+      status_code: 200,
+      success: true,
+      duration_ms: 184,
+      request_payload: JSON.stringify({
+        event: 'secret.updated',
+        project: 'Ecommerce API Gateway',
+        environment: 'production',
+        timestamp: new Date().toISOString(),
+        actor: 'alex.developer@envault.dev',
+        impacted_keys: ['DATABASE_URL', 'STRIPE_SECRET_KEY'],
+      }, null, 2),
+      request_headers: {
+        'Content-Type': 'application/json',
+        'X-Envault-Signature': 'sha256=8a2b3f1c9d8e7c6b5a4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5a4d3c2b',
+        'User-Agent': 'Envault-Webhook-Dispatcher/2.0',
+      },
+      response_body: JSON.stringify({
+        status: 'queued',
+        job_id: 'job_verc_99182a',
+        message: 'Deployment triggered successfully.',
+      }, null, 2),
+      created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+    },
+    {
+      id: 'log-deliv-2',
+      webhook_id: 'wh-slack-demo',
+      project_id: 'proj-ecommerce-api',
+      event: 'secret.deleted',
+      url: 'https://hooks.slack.com/services/T000/B000/X123',
+      status_code: 200,
+      success: true,
+      duration_ms: 95,
+      request_payload: JSON.stringify({
+        event: 'secret.deleted',
+        project: 'Ecommerce API Gateway',
+        environment: 'staging',
+        timestamp: new Date().toISOString(),
+        actor: 'alex.developer@envault.dev',
+        impacted_keys: ['OLD_JWT_TOKEN_TEMP'],
+      }, null, 2),
+      request_headers: {
+        'Content-Type': 'application/json',
+        'X-Envault-Signature': 'sha256=11aa22bb33cc44dd55ee66ff77ff88aa99bb00cc11dd22ee33ff44ff55aa66bb',
+        'User-Agent': 'Envault-Webhook-Dispatcher/2.0',
+      },
+      response_body: 'ok',
+      created_at: new Date(Date.now() - 4 * 3600000).toISOString(),
+    }
+  ],
 };
 
 class StorageEngine {
@@ -362,6 +446,12 @@ class StorageEngine {
         const parsed = JSON.parse(saved);
         if (!parsed.transfers || parsed.transfers.length === 0) {
           parsed.transfers = INITIAL_STATE.transfers;
+        }
+        if (!parsed.webhooks) {
+          parsed.webhooks = INITIAL_STATE.webhooks;
+        }
+        if (!parsed.webhookDeliveryLogs) {
+          parsed.webhookDeliveryLogs = INITIAL_STATE.webhookDeliveryLogs;
         }
         return parsed;
       }
@@ -754,7 +844,12 @@ class StorageEngine {
     key: string,
     encryptedValue: string,
     iv: string,
-    user: User
+    user: User,
+    rotationIntervalDays?: number | null,
+    rotationStrategy?: 'generate_alphanumeric' | 'generate_hex' | 'generate_uuid' | 'manual_update' | null,
+    rotationKeyLength?: number | null,
+    lastRotatedAt?: string | null,
+    nextRotationDue?: string | null
   ): Secret {
     // Validate secret key format: starts with uppercase letter/underscore, only letters, numbers, underscores
     const keyClean = key.trim().toUpperCase();
@@ -777,17 +872,46 @@ class StorageEngine {
     if (existingIdx !== -1) {
       // Update
       actionType = 'updated';
+      const existing = this.state.secrets[existingIdx];
+      
+      let nextDue = nextRotationDue;
+      let lastRotated = lastRotatedAt;
+
+      // If rotation interval is newly specified or changed, calculate new dates
+      if (rotationIntervalDays !== undefined) {
+        if (rotationIntervalDays === null) {
+          nextDue = null;
+          lastRotated = null;
+        } else if (rotationIntervalDays !== existing.rotation_interval_days) {
+          lastRotated = new Date().toISOString();
+          nextDue = new Date(Date.now() + rotationIntervalDays * 86400000).toISOString();
+        }
+      }
+
       savedSecret = {
-        ...this.state.secrets[existingIdx],
+        ...existing,
         encrypted_value: encryptedValue,
         iv: iv,
         updated_by: user.id,
         updated_at: new Date().toISOString(),
+        rotation_interval_days: rotationIntervalDays !== undefined ? rotationIntervalDays : existing.rotation_interval_days,
+        rotation_strategy: rotationStrategy !== undefined ? rotationStrategy : existing.rotation_strategy,
+        rotation_key_length: rotationKeyLength !== undefined ? rotationKeyLength : existing.rotation_key_length,
+        last_rotated_at: lastRotated !== undefined ? lastRotated : existing.last_rotated_at,
+        next_rotation_due: nextDue !== undefined ? nextDue : existing.next_rotation_due,
       };
       this.state.secrets[existingIdx] = savedSecret;
     } else {
       // Insert
       actionType = 'created';
+      let nextDue = null;
+      let lastRotated = null;
+
+      if (rotationIntervalDays) {
+        lastRotated = new Date().toISOString();
+        nextDue = new Date(Date.now() + rotationIntervalDays * 86400000).toISOString();
+      }
+
       savedSecret = {
         id: 'sec-' + Math.random().toString(36).substring(2, 9),
         environment_id: environmentId,
@@ -798,6 +922,11 @@ class StorageEngine {
         updated_by: user.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        rotation_interval_days: rotationIntervalDays !== undefined ? rotationIntervalDays : null,
+        rotation_strategy: rotationStrategy !== undefined ? rotationStrategy : null,
+        rotation_key_length: rotationKeyLength !== undefined ? rotationKeyLength : null,
+        last_rotated_at: lastRotated,
+        next_rotation_due: nextDue,
       };
       this.state.secrets.push(savedSecret);
     }
@@ -1110,6 +1239,96 @@ class StorageEngine {
       restoredCount: target.snapshot_before.length,
       message: `Successfully reverted '${target.environment_name}' back to pre-import snapshot (${target.snapshot_before.length} variables restored).`,
     };
+  }
+
+  // WEBHOOK METHODS
+  public getWebhooks(projectId: string): WebhookConfig[] {
+    if (!this.state.webhooks) {
+      this.state.webhooks = [];
+    }
+    return this.state.webhooks.filter((w) => w.project_id === projectId);
+  }
+
+  public addWebhook(webhook: Omit<WebhookConfig, 'id' | 'created_at' | 'updated_at'>): WebhookConfig {
+    if (!this.state.webhooks) {
+      this.state.webhooks = [];
+    }
+    const newWebhook: WebhookConfig = {
+      ...webhook,
+      id: 'wh-' + Math.random().toString(36).substring(2, 9),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    this.state.webhooks.push(newWebhook);
+    this.saveState(this.state);
+    return newWebhook;
+  }
+
+  public updateWebhook(
+    id: string,
+    updates: Partial<Omit<WebhookConfig, 'id' | 'project_id' | 'created_at'>>
+  ): WebhookConfig {
+    if (!this.state.webhooks) {
+      this.state.webhooks = [];
+    }
+    const idx = this.state.webhooks.findIndex((w) => w.id === id);
+    if (idx === -1) {
+      throw new Error('Webhook not found.');
+    }
+    const updated: WebhookConfig = {
+      ...this.state.webhooks[idx],
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    this.state.webhooks[idx] = updated;
+    this.saveState(this.state);
+    return updated;
+  }
+
+  public deleteWebhook(id: string): void {
+    if (!this.state.webhooks) {
+      this.state.webhooks = [];
+    }
+    this.state.webhooks = this.state.webhooks.filter((w) => w.id !== id);
+    if (this.state.webhookDeliveryLogs) {
+      this.state.webhookDeliveryLogs = this.state.webhookDeliveryLogs.filter((l) => l.webhook_id !== id);
+    }
+    this.saveState(this.state);
+  }
+
+  public getWebhookDeliveryLogs(projectId: string): WebhookDeliveryLog[] {
+    if (!this.state.webhookDeliveryLogs) {
+      this.state.webhookDeliveryLogs = [];
+    }
+    return this.state.webhookDeliveryLogs
+      .filter((l) => l.project_id === projectId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  public addWebhookDeliveryLog(log: Omit<WebhookDeliveryLog, 'id' | 'created_at'>): WebhookDeliveryLog {
+    if (!this.state.webhookDeliveryLogs) {
+      this.state.webhookDeliveryLogs = [];
+    }
+    const newLog: WebhookDeliveryLog = {
+      ...log,
+      id: 'log-deliv-' + Math.random().toString(36).substring(2, 9),
+      created_at: new Date().toISOString(),
+    };
+    this.state.webhookDeliveryLogs.unshift(newLog);
+    // limit logs to last 100
+    if (this.state.webhookDeliveryLogs.length > 200) {
+      this.state.webhookDeliveryLogs = this.state.webhookDeliveryLogs.slice(0, 200);
+    }
+    this.saveState(this.state);
+    return newLog;
+  }
+
+  public clearWebhookDeliveryLogs(projectId: string): void {
+    if (!this.state.webhookDeliveryLogs) {
+      this.state.webhookDeliveryLogs = [];
+    }
+    this.state.webhookDeliveryLogs = this.state.webhookDeliveryLogs.filter((l) => l.project_id !== projectId);
+    this.saveState(this.state);
   }
 }
 

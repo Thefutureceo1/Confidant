@@ -23,6 +23,7 @@ import { DEMO_USERS } from '../lib/storage';
 
 import { Project, Environment } from '../types';
 import { GlobalSearch } from './GlobalSearch';
+import { OfflineModeIndicator } from './OfflineModeIndicator';
 
 interface NavbarProps {
   onOpenCli: () => void;
@@ -146,6 +147,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Center / Right: Encryption status badge & Quick Action tools */}
         <div className="flex items-center space-x-2 sm:space-x-3">
+          {/* Subtle network connection / air-gap indicator */}
+          <OfflineModeIndicator />
+
           {/* Mobile search toggle button */}
           <button
             onClick={() => setMobileSearchOpen(!mobileSearchOpen)}

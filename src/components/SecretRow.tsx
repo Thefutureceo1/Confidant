@@ -10,9 +10,12 @@ import {
   Clock,
   Code2,
   Lock,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { DecryptedSecret } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useWorkspace } from '../context/WorkspaceContext';
 
 interface SecretRowProps {
   secret: DecryptedSecret;
@@ -30,11 +33,64 @@ export const SecretRow: React.FC<SecretRowProps> = ({
   onInspectCiphertext,
 }) => {
   const { userRole, user, isKeyUnlocked } = useAuth();
+  const { saveSecret } = useWorkspace();
   const [localShow, setLocalShow] = useState(false);
   const [copiedValue, setCopiedValue] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
 
   const isVisible = globalShowAll || localShow;
+
+  const isOverdue = secret.rotation_interval_days && secret.next_rotation_due
+    ? new Date().getTime() > new Date(secret.next_rotation_due).getTime()
+    : false;
+
+  const handleRotateNow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!secret.rotation_interval_days || isRotating) return;
+    setIsRotating(true);
+    try {
+      let newValue = '';
+      const strategy = secret.rotation_strategy || 'manual_update';
+      const keyLength = secret.rotation_key_length || 32;
+
+      if (strategy === 'manual_update') {
+        onEdit(secret);
+        setIsRotating(false);
+        return;
+      }
+
+      if (strategy === 'generate_uuid') {
+        newValue = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (window.crypto.getRandomValues(new Uint8Array(1))[0]) % 16;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      } else {
+        const hexChars = '0123456789abcdef';
+        const alphaChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
+        const chars = strategy === 'generate_hex' ? hexChars : alphaChars;
+        const arr = new Uint8Array(keyLength);
+        window.crypto.getRandomValues(arr);
+        newValue = Array.from(arr).map(b => chars[b % chars.length]).join('');
+      }
+
+      await saveSecret(
+        secret.environment_id,
+        secret.key,
+        newValue,
+        secret.rotation_interval_days,
+        secret.rotation_strategy,
+        secret.rotation_key_length,
+        new Date().toISOString(), // lastRotatedAt
+        new Date(Date.now() + secret.rotation_interval_days * 86400000).toISOString() // nextRotationDue
+      );
+    } catch (err: any) {
+      alert(`Rotation Failed: ${err.message || 'Error occurred during cryptographic rotation.'}`);
+    } finally {
+      setIsRotating(false);
+    }
+  };
 
   const handleCopyValue = async () => {
     if (!secret.value) return;
@@ -86,6 +142,38 @@ export const SecretRow: React.FC<SecretRowProps> = ({
             )}
           </button>
         </div>
+
+        {secret.rotation_interval_days && (
+          <div className="text-[10px] text-slate-400 mt-1.5 flex items-center space-x-2 flex-wrap gap-y-1">
+            <span className="text-[9px] uppercase font-bold text-slate-500 font-sans tracking-wide">Rotates:</span>
+            <span className="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono text-[9px] border border-white/[0.04]">
+              {secret.rotation_interval_days}d ({secret.rotation_strategy?.replace('generate_', '')})
+            </span>
+            {isOverdue ? (
+              <span className="text-amber-400 font-semibold animate-pulse flex items-center space-x-0.5">
+                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                <span>Rotation Overdue</span>
+              </span>
+            ) : (
+              <span className="text-slate-500 text-[9px]">
+                Due: {new Date(secret.next_rotation_due!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </span>
+            )}
+            
+            {/* Quick Rotate button */}
+            {isKeyUnlocked && (
+              <button
+                onClick={handleRotateNow}
+                disabled={isRotating}
+                className="text-indigo-400 hover:text-indigo-300 hover:underline text-[9px] font-sans font-medium shrink-0 ml-1 flex items-center space-x-0.5 border-l border-white/[0.1] pl-2"
+                title="Trigger instant auto-generation rotation"
+              >
+                <RefreshCw className={`h-2.5 w-2.5 ${isRotating ? 'animate-spin' : ''}`} />
+                <span>{isRotating ? 'Rotating...' : 'Rotate Now'}</span>
+              </button>
+            )}
+          </div>
+        )}
       </td>
 
       {/* Value column (masked or revealed) */}

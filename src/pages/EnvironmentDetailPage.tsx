@@ -70,8 +70,14 @@ export const EnvironmentDetailPage: React.FC<EnvironmentDetailPageProps> = ({
 
   const existingKeys = secrets.map((s) => s.key);
 
-  const handleSaveSecret = async (key: string, value: string) => {
-    await saveSecret(environment.id, key, value);
+  const handleSaveSecret = async (
+    key: string,
+    value: string,
+    rotationIntervalDays?: number | null,
+    rotationStrategy?: 'generate_alphanumeric' | 'generate_hex' | 'generate_uuid' | 'manual_update' | null,
+    rotationKeyLength?: number | null
+  ) => {
+    await saveSecret(environment.id, key, value, rotationIntervalDays, rotationStrategy, rotationKeyLength);
   };
 
   const handleExportDownload = async () => {

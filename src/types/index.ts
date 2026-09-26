@@ -54,6 +54,11 @@ export interface Secret {
   updated_by: string;
   created_at: string;
   updated_at: string;
+  rotation_interval_days?: number | null; // e.g. 30, 60, 90, null
+  rotation_strategy?: 'generate_alphanumeric' | 'generate_hex' | 'generate_uuid' | 'manual_update' | null;
+  rotation_key_length?: number | null; // e.g. 16, 24, 32, 64
+  last_rotated_at?: string | null;
+  next_rotation_due?: string | null;
 }
 
 export interface DecryptedSecret extends Secret {
@@ -112,5 +117,32 @@ export interface TransferRecord {
   snapshot_after: Secret[];  // encrypted backup after the transfer
   checksum: string;
   notes?: string;
+}
+
+export interface WebhookConfig {
+  id: string;
+  project_id: string;
+  name: string;
+  url: string;
+  secret_token: string;
+  active: boolean;
+  events: ('secret.created' | 'secret.updated' | 'secret.deleted' | 'secret.reverted')[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebhookDeliveryLog {
+  id: string;
+  webhook_id: string;
+  project_id: string;
+  event: string;
+  url: string;
+  status_code: number | null;
+  success: boolean;
+  duration_ms: number;
+  request_payload: string;
+  request_headers: Record<string, string>;
+  response_body: string;
+  created_at: string;
 }
 
