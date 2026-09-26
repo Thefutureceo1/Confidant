@@ -7,9 +7,11 @@
 
 ## What is Confidant?
 
-**Confidant** is a zero-knowledge, client-side encrypted secret and environment variable manager built for **DevOps teams, platform engineers, and security-conscious developers** who need bulletproof secret management in restricted, air-gapped, or on-premises environments.
+**Confidant** is a zero-knowledge, client-side encrypted secret and environment variable manager built for **DevOps teams, platform engineers, and security-conscious developers** who need strong secret management in restricted, air-gapped, or on-premises environments.
 
-Unlike traditional secret managers (Vault, Doppler, AWS Secrets Manager), **Confidant never stores your unencrypted secrets** — not even the provider can access them. All cryptographic operations happen **entirely in your browser** using industry-standard Web Crypto APIs.
+Unlike traditional secret managers, **Confidant never stores your unencrypted secrets** — not even the provider can access them. All cryptographic operations happen **entirely in your browser** using industry-standard Web Crypto APIs.
+
+**Confidant is designed for teams operating in environments where trust, isolation, and compliance matter most.**
 
 **Perfect for:**
 - 🔒 High-security environments (defense, finance, healthcare)
@@ -17,6 +19,14 @@ Unlike traditional secret managers (Vault, Doppler, AWS Secrets Manager), **Conf
 - 📋 Teams needing compliance-ready secret rotation
 - 🏠 Self-hosted infrastructure (on-premises only)
 - 🔐 Organizations requiring zero-trust architecture
+
+---
+
+## Why this matters
+
+Modern engineering teams often manage credentials across cloud platforms, CI/CD pipelines, local development, and restricted infrastructure. Most secret managers assume internet access, centralized control, or cloud trust models that do not fit highly regulated or isolated environments.
+
+**Confidant solves that problem by keeping decryption local, minimizing external dependencies, and working in offline or air-gapped environments without sacrificing encryption quality.**
 
 ---
 
@@ -40,7 +50,15 @@ npm run dev
 👉 Open `http://localhost:3000` in your browser
 
 ### Option 3: Pre-Built Docker Image
-Coming soon to Docker Hub! For now, build locally with `docker compose`.
+Coming soon to Docker Hub. For now, build locally with `docker compose`.
+
+---
+
+## 📸 Product Preview
+
+A product screenshot or dashboard walkthrough is planned for the next release.
+
+If you want a visual preview now, run locally and open the app in your browser after starting the container or dev server.
 
 ---
 
@@ -209,11 +227,11 @@ function verifyConfidantWebhook(req, res, next) {
 ## 🛡️ Security & Compliance
 
 ✅ **Zero-Knowledge Architecture** — We cannot access your secrets  
-✅ **AES-256-GCM Encryption** — Military-grade encryption standard  
-✅ **PBKDF2-HMAC-SHA256** — Industry-standard key derivation  
+✅ **AES-256-GCM Encryption** — Industry-standard authenticated encryption  
+✅ **PBKDF2-HMAC-SHA256** — Standard key derivation process  
 ✅ **No External Dependencies** — Works offline and air-gapped  
-✅ **Open Source** — Full transparency, security through scrutiny  
-✅ **Compliant with:** NIST, FIPS 140-2 (cryptography standards)
+✅ **Source-Available** — Transparent code review with controlled commercial licensing  
+✅ **Compliance-Oriented** — Designed for restricted and high-trust environments
 
 **For security vulnerabilities,** please see [SECURITY.md](SECURITY.md) for responsible disclosure.
 
