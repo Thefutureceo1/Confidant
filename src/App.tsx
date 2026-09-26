@@ -21,12 +21,14 @@ import { EnvironmentDetailPage } from './pages/EnvironmentDetailPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AccountPage } from './pages/AccountPage';
+import { LandingPage } from './pages/LandingPage';
 import { Project, Environment } from './types';
 
 function MainApp() {
-  const [currentPage, setCurrentPage] = useState<string>('dashboard');
+  const [currentPage, setCurrentPage] = useState<string>('landing');
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [activeEnvironment, setActiveEnvironment] = useState<Environment | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modal open states
   const [cliModalOpen, setCliModalOpen] = useState(false);
@@ -96,8 +98,12 @@ function MainApp() {
     setDiffProject(project);
   };
 
+  if (currentPage === 'landing') {
+    return <LandingPage onStart={() => setCurrentPage('dashboard')} />;
+  }
+
   return (
-    <div className="h-screen overflow-hidden bg-[#0b0d13] text-slate-100 flex flex-col font-sans">
+    <div className="h-screen overflow-hidden bg-[#0c0d0e] text-slate-100 flex flex-col font-sans">
       {/* Top Navigation */}
       <Navbar
         currentPage={currentPage}
@@ -116,6 +122,7 @@ function MainApp() {
         onOpenShortcutsHelp={() => setShortcutsModalOpen(true)}
         onOpenAuthModal={() => setAuthModalOpen(true)}
         onSelectEnvironment={handleSelectEnvironment}
+        onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
       {/* Main Content with Sidebar */}
@@ -133,6 +140,7 @@ function MainApp() {
           onOpenCli={() => setCliModalOpen(true)}
           onOpenCloudSync={() => setCloudSyncModalOpen(true)}
           onOpenShortcutsHelp={() => setShortcutsModalOpen(true)}
+          collapsed={sidebarCollapsed}
         />
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-8 max-w-7xl mx-auto w-full">

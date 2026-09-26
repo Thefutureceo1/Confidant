@@ -24,6 +24,7 @@ import { DEMO_USERS } from '../lib/storage';
 import { Project, Environment } from '../types';
 import { GlobalSearch } from './GlobalSearch';
 import { OfflineModeIndicator } from './OfflineModeIndicator';
+import { ConfidantLogo } from './ConfidantLogo';
 
 interface NavbarProps {
   onOpenCli: () => void;
@@ -36,6 +37,7 @@ interface NavbarProps {
   onNavigate: (page: string) => void;
   currentPage: string;
   onSelectEnvironment?: (project: Project, env: Environment) => void;
+  onToggleSidebar?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -49,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   currentPage,
   onSelectEnvironment,
+  onToggleSidebar,
 }) => {
   const {
     user,
@@ -66,28 +69,34 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#0b0d13]/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#0c0d0e]/80 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         {/* Left: Brand & Workspace Switcher */}
         <div className="flex items-center space-x-4">
-          <button
-            onClick={() => onNavigate('dashboard')}
-            className="flex items-center space-x-2.5 group focus:outline-none"
-          >
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 p-[1px] shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/30 transition-all">
-              <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-[#0d1017]">
-                <KeyRound className="h-4 w-4 text-cyan-400 transition-transform group-hover:scale-110" />
+          <div className="flex items-center space-x-2.5">
+            <button
+              onClick={() => onToggleSidebar?.()}
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-[#9a7b32] via-[#d4af37] to-[#f3e5ab] p-[1px] shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transition-all focus:outline-none cursor-pointer"
+              title="Toggle Sidebar Collapse"
+            >
+              <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-[#0c0d0e]">
+                <ConfidantLogo size={20} className="transition-transform hover:rotate-12 duration-200" />
               </div>
-            </div>
-            <div className="flex flex-col text-left">
-              <span className="text-base font-semibold tracking-tight text-white flex items-center gap-1.5">
+            </button>
+
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="flex flex-col text-left focus:outline-none cursor-pointer"
+              title="Go to Dashboard"
+            >
+              <span className="text-base font-semibold tracking-tight text-white flex items-center gap-1.5 hover:text-[#e5c158] transition-colors">
                 Confidant
-                <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   Zero-Knowledge
                 </span>
               </span>
-            </div>
-          </button>
+            </button>
+          </div>
 
           <div className="hidden md:block h-5 w-[1px] bg-white/10" />
 

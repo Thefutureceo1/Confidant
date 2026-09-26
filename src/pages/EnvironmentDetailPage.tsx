@@ -25,6 +25,7 @@ import { SecretRow } from '../components/SecretRow';
 import { SecretModal } from '../components/SecretModal';
 import { ImportEnvModal } from '../components/ImportEnvModal';
 import { InspectCiphertextModal } from '../components/InspectCiphertextModal';
+import { ExportTemplateModal } from '../components/ExportTemplateModal';
 
 interface EnvironmentDetailPageProps {
   project: Project;
@@ -63,6 +64,7 @@ export const EnvironmentDetailPage: React.FC<EnvironmentDetailPageProps> = ({
   const [inspectSecret, setInspectSecret] = useState<DecryptedSecret | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
 
   const filteredSecrets = decryptedSecrets.filter((s) =>
     s.key.toLowerCase().includes(searchQuery.toLowerCase())
@@ -166,6 +168,15 @@ export const EnvironmentDetailPage: React.FC<EnvironmentDetailPageProps> = ({
             >
               <Download className="h-3.5 w-3.5 text-emerald-400" />
               <span>Export .env</span>
+            </button>
+
+            <button
+              onClick={() => setTemplateModalOpen(true)}
+              className="flex items-center space-x-1.5 rounded-xl border border-indigo-500/25 bg-indigo-500/5 hover:bg-indigo-500/10 px-3 py-2 text-xs font-medium text-slate-200 transition-colors"
+              title="Export in custom formats: YAML, Terraform, Kubernetes, etc."
+            >
+              <FileCode className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Templates Library</span>
             </button>
 
             <button
@@ -369,6 +380,14 @@ export const EnvironmentDetailPage: React.FC<EnvironmentDetailPageProps> = ({
       <InspectCiphertextModal
         secret={inspectSecret}
         onClose={() => setInspectSecret(null)}
+      />
+
+      <ExportTemplateModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        secrets={decryptedSecrets}
+        projectName={project.name}
+        environmentName={environment.name}
       />
     </div>
   );

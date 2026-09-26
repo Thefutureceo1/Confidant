@@ -73,7 +73,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             <span>Projects & Environments</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Centralized zero-knowledge secrets vault for <span className="text-indigo-300 font-medium">{currentWorkspace?.name}</span>
+            Centralized zero-knowledge secrets vault for <span className="text-[#e5c158] font-medium">{currentWorkspace?.name}</span>
           </p>
         </div>
 
@@ -81,10 +81,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           {onOpenCloudSync && (
             <button
               onClick={onOpenCloudSync}
-              className="flex items-center space-x-1.5 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 hover:from-indigo-500/20 hover:to-cyan-500/20 px-3.5 py-2 text-xs font-medium text-slate-200 transition-colors"
+              className="flex items-center space-x-1.5 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-yellow-500/5 hover:from-amber-500/20 hover:to-yellow-500/10 px-3.5 py-2 text-xs font-medium text-slate-200 transition-colors"
               title="Sync secrets with Vercel, AWS, Cloudflare, GitHub (⌘S)"
             >
-              <Cloud className="h-3.5 w-3.5 text-cyan-400" />
+              <Cloud className="h-3.5 w-3.5 text-amber-400" />
               <span>Cloud Sync</span>
             </button>
           )}
@@ -93,13 +93,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             onClick={onOpenImportEnv}
             className="flex items-center space-x-1.5 rounded-xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] px-3.5 py-2 text-xs font-medium text-slate-200 transition-colors"
           >
-            <FileUp className="h-3.5 w-3.5 text-cyan-400" />
+            <FileUp className="h-3.5 w-3.5 text-amber-400" />
             <span>Import .env</span>
           </button>
 
           <button
             onClick={onOpenNewProject}
-            className="flex items-center space-x-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 text-xs font-medium transition-all shadow-lg shadow-indigo-600/30"
+            className="flex items-center space-x-1.5 rounded-xl bg-[#d4af37] hover:bg-[#e5c158] text-[#0c0d0e] px-3.5 py-2 text-xs font-semibold transition-all shadow-lg shadow-amber-500/10"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>New Project</span>
@@ -112,7 +112,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="glass-card rounded-2xl p-4 border border-white/[0.08]">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-medium">Projects</span>
-            <FolderKanban className="h-4 w-4 text-indigo-400" />
+            <FolderKanban className="h-4 w-4 text-[#e5c158]" />
           </div>
           <div className="text-2xl font-bold text-white font-mono">{projects.length}</div>
           <div className="text-[11px] text-slate-500 mt-1">Active microservices</div>
@@ -121,9 +121,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="glass-card rounded-2xl p-4 border border-white/[0.08]">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-medium">Encrypted Secrets</span>
-            <KeyRound className="h-4 w-4 text-cyan-400" />
+            <KeyRound className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-cyan-300 font-mono">{totalSecrets}</div>
+          <div className="text-2xl font-bold text-amber-300 font-mono">{totalSecrets}</div>
           <div className="text-[11px] text-slate-500 mt-1">AES-256-GCM ciphertext</div>
         </div>
 
@@ -171,7 +171,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search projects by name or description..."
-              className="w-full rounded-xl border border-white/[0.08] bg-black/40 pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-white/[0.08] bg-black/40 pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:border-amber-500/50 focus:outline-none"
             />
           </div>
 
